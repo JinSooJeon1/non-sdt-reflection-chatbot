@@ -1,0 +1,1 @@
+{"timestamp_utc": "2026-11-17T04:05:43.882+00:00", "event": "session_start", "session_id": "d16ade36-5ad3-431f-8f05-0c3fe81b381a", "participant_id": "P000", "model": "gpt-6-luna", "prompt_version": "NonSDT_V1", "prompt_sha256": "aacbc276961da555765c82c81a9f0817c5c6290c67e3ad01def90196e096d322", "planned_duration_seconds": 720}
