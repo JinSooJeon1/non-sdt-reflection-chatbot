@@ -1,0 +1,5 @@
+{"timestamp_utc": "2026-11-18T16:30:40.943+00:00", "event": "session_start", "session_id": "8d14919f-803f-462d-8365-cd63cae648dc", "participant_id": "P000", "model": "gpt-6-luna", "prompt_version": "NonSDT_V1", "prompt_sha256": "19fff5d574bea77a8d94adf43afbc8e6a8a0d227a5668102df7d89cfef841088", "planned_duration_seconds": 1200}
+{"timestamp_utc": "2026-11-18T16:30:53.025+00:00", "event": "message", "session_id": "8d14919f-803f-462d-8365-cd63cae648dc", "participant_id": "P000", "role": "user", "phase": 1, "elapsed_seconds": 12.084, "text": "가나다라마바사"}
+{"timestamp_utc": "2026-11-18T16:30:55.568+00:00", "event": "api_error", "session_id": "8d14919f-803f-462d-8365-cd63cae648dc", "participant_id": "P000", "error_type": "AuthenticationError"}
+{"timestamp_utc": "2026-11-18T16:31:06.213+00:00", "event": "message", "session_id": "8d14919f-803f-462d-8365-cd63cae648dc", "participant_id": "P000", "role": "user", "phase": 1, "elapsed_seconds": 25.271, "text": "최근에 아주 느낌이 좋아"}
+{"timestamp_utc": "2026-11-18T16:31:06.995+00:00", "event": "api_error", "session_id": "8d14919f-803f-462d-8365-cd63cae648dc", "participant_id": "P000", "error_type": "AuthenticationError"}
