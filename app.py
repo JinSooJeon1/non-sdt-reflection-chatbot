@@ -47,12 +47,15 @@ st.set_page_config(
 )
 
 
+
+
 @st.cache_resource
 def get_supabase():
     return create_client(
-        os.environ["SUPABASE_URL"],
-        os.environ["SUPABASE_SECRET_KEY"]
+        st.secrets["SUPABASE_URL"].strip(),
+        st.secrets["SUPABASE_SECRET_KEY"].strip()
     )
+
 
 
 def utc_now() -> str:
@@ -81,13 +84,23 @@ def record(event_type: str, **fields: object) -> None:
             "payload": record_data,
         }).execute()
 
+
     except Exception as exc:
-        # print("Supabase save failed:", type(exc).__name__)
-        # st.error(
-        #     "실험 기록 저장에 실패했습니다. "
-        #     "연구자에게 알려 주세요."
-        # )
-        # st.stop()
+        print(
+            "SUPABASE ERROR:",
+            type(exc).__name__,
+            "CODE:",
+            getattr(exc, "code", None),
+            "MESSAGE:",
+            str(exc)[:500],
+            flush=True
+        )
+        st.error(
+            "실험 기록 저장에 실패했습니다. "
+            "연구자에게 알려 주세요."
+        )
+        st.stop()
+
 
         print(
             "Supabase save failed:",
