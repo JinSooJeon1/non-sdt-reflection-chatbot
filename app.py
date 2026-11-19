@@ -14,10 +14,10 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 from uuid import uuid4
-
 import streamlit as st
 from dotenv import load_dotenv
 from openai import OpenAI
+from supabase import create_client
 
 ROOT = Path(__file__).resolve().parent
 load_dotenv(ROOT / ".env")
