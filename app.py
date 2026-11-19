@@ -141,13 +141,40 @@ if st.session_state.status == "not_started":
             st.rerun()
 
 else:
-    st.caption("최근 부정적인 감정을 느꼈던 한 가지 경험에 대해 자유롭게 이야기해 주세요. 원하지 않는 질문에는 답하지 않아도 됩니다.")
+    
+    st.markdown(
+        """
+        <div style="
+            font-size: 18px;
+            font-weight: 500;
+            line-height: 1.7;
+            margin-bottom: 16px;
+        ">
+            최근 부정적인 감정을 느꼈던 한 가지 경험에 대해 자유롭게 이야기해 주세요.
+            원하지 않는 질문에는 답하지 않아도 됩니다.
+        </div>
+        """,
+        unsafe_allow_html=True
+)
+
 
     @st.fragment(run_every="1s")
     def show_clock() -> None:
         if st.session_state.status == "active":
             remaining = max(0, int(SESSION_SECONDS - (time.time() - st.session_state.started_at)))
-            st.caption(f"남은 시간: {remaining // 60:02d}:{remaining % 60:02d}")
+            st.markdown(
+                f"""
+                <div style="
+                    font-size: 20px;
+                    font-weight: 700;
+                    margin: 10px 0 16px 0;
+                ">
+                    남은 시간: {remaining // 60:02d}:{remaining % 60:02d}
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+
             if remaining <= 0:
                 finish("time_limit")
                 st.rerun()
