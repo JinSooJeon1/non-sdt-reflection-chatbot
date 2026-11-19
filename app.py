@@ -47,13 +47,22 @@ st.set_page_config(
 )
 
 
+@st.cache_resource
+def get_supabase():
+    return create_client(
+        os.environ["SUPABASE_URL"],
+        os.environ["SUPABASE_SECRET_KEY"]
+    )
+
+
 def utc_now() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="milliseconds")
 
 
+
 def record(event_type: str, **fields: object) -> None:
-    """Append one UTC-timestamped research event to a server-side JSONL file."""
-    LOG_DIR.mkdir(exist_ok=True)
+    """Save research events with UTC timestamps."""
+
     record_data = {
         "timestamp_utc": utc_now(),
         "event": event_type,
@@ -61,9 +70,38 @@ def record(event_type: str, **fields: object) -> None:
         "participant_id": st.session_state.participant_id,
         **fields,
     }
-    file_path = LOG_DIR / f"{st.session_state.session_id}.jsonl"
-    with file_path.open("a", encoding="utf-8") as f:
-        f.write(json.dumps(record_data, ensure_ascii=False) + "\n")
+
+    # 1. Supabase에 자동 저장
+    try:
+        get_supabase().table("reflection_events").insert({
+            "timestamp_utc": record_data["timestamp_utc"],
+            "session_id": record_data["session_id"],
+            "participant_id": record_data["participant_id"],
+            "event": record_data["event"],
+            "payload": record_data,
+        }).execute()
+
+    except Exception as exc:
+        print("Supabase save failed:", type(exc).__name__)
+        st.error(
+            "실험 기록 저장에 실패했습니다. "
+            "연구자에게 알려 주세요."
+        )
+        st.stop()
+
+    # 2. 기존 JSONL 임시 백업 유지
+    try:
+        LOG_DIR.mkdir(exist_ok=True)
+        file_path = LOG_DIR / f"{st.session_state.session_id}.jsonl"
+
+        with file_path.open("a", encoding="utf-8") as f:
+            f.write(
+                json.dumps(record_data, ensure_ascii=False) + "\n"
+            )
+    except OSError:
+        print("Local JSONL backup failed")
+
+    
 
 
 def current_phase(seconds_elapsed: float) -> tuple[int, str, str]:
@@ -135,9 +173,13 @@ if st.session_state.status == "not_started":
                 "session_start",
                 model=MODEL,
                 prompt_version=PROMPT_VERSION,
-                prompt_sha256=hashlib.sha256(prompt.encode("utf-8")).hexdigest(),
+                prompt_sha256=hashlib.sha256(
+                    prompt.encode("utf-8")
+                ).hexdigest(),
                 planned_duration_seconds=SESSION_SECONDS,
             )
+
+            st.session_state.status = "active"
             st.rerun()
 
 else:
