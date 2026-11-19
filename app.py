@@ -82,12 +82,20 @@ def record(event_type: str, **fields: object) -> None:
         }).execute()
 
     except Exception as exc:
-        print("Supabase save failed:", type(exc).__name__)
-        st.error(
-            "실험 기록 저장에 실패했습니다. "
-            "연구자에게 알려 주세요."
+        # print("Supabase save failed:", type(exc).__name__)
+        # st.error(
+        #     "실험 기록 저장에 실패했습니다. "
+        #     "연구자에게 알려 주세요."
+        # )
+        # st.stop()
+
+        print(
+            "Supabase save failed:",
+            type(exc).__name__,
+            "code:", getattr(exc, "code", None),
+            "message:", getattr(exc, "message", str(exc)),
+            flush=True
         )
-        st.stop()
 
     # 2. 기존 JSONL 임시 백업 유지
     try:
