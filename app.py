@@ -218,7 +218,7 @@ else:
     st.markdown(
         """
         <div style="
-            font-size: 17px;
+            font-size: 18px;
             font-weight: 500;
             line-height: 1.7;
             margin-bottom: 16px;
@@ -237,7 +237,7 @@ else:
             st.markdown(
                 f"""
                 <div style="
-                    font-size: 17px;
+                    font-size: 18px;
                     font-weight: 700;
                     margin: 10px 0 16px 0;
                 ">
