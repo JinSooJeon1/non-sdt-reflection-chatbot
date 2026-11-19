@@ -34,7 +34,7 @@ def get_server_prompt() -> str:
     return ""
 LOG_DIR = ROOT / "logs"
 MODEL = os.getenv("RESEARCH_MODEL", "gpt-6-luna")
-SESSION_SECONDS = int(os.getenv("SESSION_SECONDS", "600"))
+SESSION_SECONDS = int(os.getenv("SESSION_SECONDS", "1200"))
 PROMPT_VERSION = os.getenv("PROMPT_VERSION", "NonSDT_V1")
 
 # No sidebar, prompt editor, API-key control, or researcher debug tools in participant UI.
@@ -49,12 +49,27 @@ st.set_page_config(
 
 
 
+def get_setting(name: str) -> str:
+    """Read a server-side setting without exposing its value to participants."""
+    try:
+        value = st.secrets.get(name, "")
+    except Exception:  # Local environments may not have a secrets file.
+        value = ""
+    return str(value or os.getenv(name, "")).strip()
+
+
 @st.cache_resource
 def get_supabase():
-    return create_client(
-        st.secrets["SUPABASE_URL"].strip(),
-        st.secrets["SUPABASE_SECRET_KEY"].strip()
-    )
+    """Create a server-side client; fail clearly if deployment settings are absent."""
+    url = get_setting("SUPABASE_URL").rstrip("/")
+    secret_key = get_setting("SUPABASE_SECRET_KEY")
+    if not url:
+        raise RuntimeError("SUPABASE_URL is missing from Streamlit Secrets")
+    if not secret_key:
+        raise RuntimeError("SUPABASE_SECRET_KEY is missing from Streamlit Secrets")
+    if not url.startswith("https://") or "/rest/v1" in url:
+        raise ValueError("SUPABASE_URL must be the project's https://...supabase.co base URL")
+    return create_client(url, secret_key)
 
 
 
@@ -64,8 +79,11 @@ def utc_now() -> str:
 
 
 def record(event_type: str, **fields: object) -> None:
-    """Save research events with UTC timestamps."""
+    """Save each event immediately with a UTC timestamp and local fallback copy.
 
+    Supabase is required for a successful session; the local copy is temporary
+    and can disappear after Streamlit Community Cloud restarts or redeploys.
+    """
     record_data = {
         "timestamp_utc": utc_now(),
         "event": event_type,
@@ -74,7 +92,16 @@ def record(event_type: str, **fields: object) -> None:
         **fields,
     }
 
-    # 1. Supabase에 자동 저장
+    # Attempt a local copy *before* the cloud write so failed inserts are still
+    # represented on the current server for short-term troubleshooting.
+    try:
+        LOG_DIR.mkdir(parents=True, exist_ok=True)
+        file_path = LOG_DIR / f"{st.session_state.session_id}.jsonl"
+        with file_path.open("a", encoding="utf-8") as f:
+            f.write(json.dumps(record_data, ensure_ascii=False) + "\n")
+    except OSError as exc:
+        print(f"LOCAL LOG BACKUP ERROR: {type(exc).__name__}", flush=True)
+
     try:
         get_supabase().table("reflection_events").insert({
             "timestamp_utc": record_data["timestamp_utc"],
@@ -83,50 +110,33 @@ def record(event_type: str, **fields: object) -> None:
             "event": record_data["event"],
             "payload": record_data,
         }).execute()
-
-
     except Exception as exc:
+        # Log the real error in Streamlit's server logs, but never print keys.
+        error_message = str(exc)
+        for setting_name in ("SUPABASE_SECRET_KEY", "OPENAI_API_KEY"):
+            secret = get_setting(setting_name)
+            if secret:
+                error_message = error_message.replace(secret, "[REDACTED]")
         print(
-            "SUPABASE ERROR:",
-            type(exc).__name__,
-            "CODE:",
-            getattr(exc, "code", None),
-            "MESSAGE:",
-            str(exc)[:500],
-            flush=True
+            "SUPABASE SAVE FAILED",
+            f"event={event_type}",
+            f"type={type(exc).__name__}",
+            f"code={getattr(exc, 'code', None)}",
+            f"message={error_message[:600]}",
+            flush=True,
         )
-        st.error(
-            "실험 기록 저장에 실패했습니다. "
-            "연구자에게 알려 주세요."
-        )
+        # Stop further participation if research records cannot be preserved.
+        if st.session_state.status == "active":
+            st.session_state.status = "storage_error"
+        st.error("실험 기록 저장에 실패했습니다. 연구자에게 알려 주세요.")
         st.stop()
 
-
-        print(
-            "Supabase save failed:",
-            type(exc).__name__,
-            "code:", getattr(exc, "code", None),
-            "message:", getattr(exc, "message", str(exc)),
-            flush=True
-        )
-
-    # 2. 기존 JSONL 임시 백업 유지
-    try:
-        LOG_DIR.mkdir(exist_ok=True)
-        file_path = LOG_DIR / f"{st.session_state.session_id}.jsonl"
-
-        with file_path.open("a", encoding="utf-8") as f:
-            f.write(
-                json.dumps(record_data, ensure_ascii=False) + "\n"
-            )
-    except OSError:
-        print("Local JSONL backup failed")
-
-    
+    if event_type == "session_start":
+        print("SUPABASE SAVE OK: session_start", flush=True)
 
 
 def current_phase(seconds_elapsed: float) -> tuple[int, str, str]:
-    """Four fixed 10-minute phases (2 + 2 + 3 + 3 min)."""
+    """Four phases scaled to the configured session duration."""
     # Scale the phase thresholds if the experimenter changes total duration.
     ratio = seconds_elapsed / max(SESSION_SECONDS, 1)
     if ratio < 0.20:
@@ -188,8 +198,8 @@ if st.session_state.status == "not_started":
             st.session_state.started_at = time.time()
             st.session_state.prompt_content = prompt
             st.session_state.messages = []
-            st.session_state.status = "active"
             st.session_state.last_phase = 1
+            # Start the experiment only after session_start was saved.
             record(
                 "session_start",
                 model=MODEL,
@@ -250,6 +260,8 @@ else:
 
     if st.session_state.status == "ended":
         st.success("성찰이 종료되었습니다. 연구자의 다음 안내에 따라 주세요.")
+    elif st.session_state.status == "storage_error":
+        st.error("기록 저장 오류로 성찰이 중지되었습니다. 연구자에게 알려 주세요.")
     else:
         user_text = st.chat_input("메시지를 입력하세요", max_chars=4000)
         if user_text:
@@ -281,6 +293,10 @@ else:
                         answer = (result.output_text or "").strip()
                         if not answer:
                             raise ValueError("Empty model response")
+                    except Exception as exc:
+                        record("api_error", error_type=type(exc).__name__)
+                        st.error("응답을 생성하지 못했습니다. 연구자에게 알려 주세요.")
+                    else:
                         st.write(answer)
                         st.session_state.messages.append({"role": "assistant", "content": answer})
                         usage = getattr(result, "usage", None)
@@ -293,8 +309,5 @@ else:
                         )
                         if time.time() - st.session_state.started_at >= SESSION_SECONDS:
                             finish("time_limit")
-                    except Exception as exc:
-                        record("api_error", error_type=type(exc).__name__)
-                        st.error("응답을 생성하지 못했습니다. 연구자에게 알려 주세요.")
             if st.session_state.status == "ended":
                 st.rerun()
