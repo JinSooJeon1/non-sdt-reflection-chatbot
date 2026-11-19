@@ -218,13 +218,12 @@ else:
     st.markdown(
         """
         <div style="
-            font-size: 14px;
+            font-size: 17px;
             font-weight: 500;
             line-height: 1.7;
             margin-bottom: 16px;
         ">
-            최근 부정적인 감정을 느꼈던 한 가지 경험에 대해 자유롭게 이야기해 주세요.
-            원하지 않는 질문에는 답하지 않아도 됩니다.
+            최근 부정적인 감정을 느꼈던 경험이나 상황에 대해 자유롭게 이야기해 주세요.
         </div>
         """,
         unsafe_allow_html=True
@@ -238,7 +237,7 @@ else:
             st.markdown(
                 f"""
                 <div style="
-                    font-size: 14px;
+                    font-size: 17px;
                     font-weight: 700;
                     margin: 10px 0 16px 0;
                 ">
